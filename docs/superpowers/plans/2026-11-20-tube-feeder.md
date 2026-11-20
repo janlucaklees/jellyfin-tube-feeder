@@ -118,7 +118,7 @@
 **Files:** Create `.github/workflows/image.yml`, `deploy/storagebaby/{service.yml,README.md,quadlet/tubefeeder.pod.j2,quadlet/tubefeeder-app.container.j2,quadlet/tubefeeder-ollama.container.j2}`; rewrite `README.md`
 
 - [ ] Step 1: Workflow: on push to main, weekly cron, manual → `bun install`, `bun test`, build+push `ghcr.io/janlucaklees/jellyfin-tube-feeder:{latest,sha}` (GITHUB_TOKEN, `packages: write`).
-- [ ] Step 2: service.yml `name: tubefeeder`, `domain: tubefeeder`, `container_port: 3000`, `volumes: { ollama: { class: pool } }`, `binds: { music: { host: /pool/shared/media/Music/YouTube, container: /music, mode: rw, group: media, owner: 0 } }`, `secrets: []`, `backup: none`. Pod publishes `127.0.0.1:{{ publish_port }}:{{ container_port }}`. App container `After/Wants` ollama; both `AutoUpdate=registry`, `HealthCmd`, `HealthOnFailure=kill`, `Restart=always`, `TZ`. Ollama image pinned version (`ollama/ollama:<current>`), health via `ollama list`.
+- [ ] Step 2: service.yml `name: tubefeeder`, `domain: tubefeeder`, `container_port: 3000`, `volumes: { ollama: { class: pool } }`, `binds: { music: { host: /pool/shared/media/Music/Children, container: /music, mode: rw, group: media, owner: 0 } }`, `secrets: []`, `backup: none`. Pod publishes `127.0.0.1:{{ publish_port }}:{{ container_port }}`. App container `After/Wants` ollama; both `AutoUpdate=registry`, `HealthCmd`, `HealthOnFailure=kill`, `Restart=always`, `TZ`. Ollama image pinned version (`ollama/ollama:<current>`), health via `ollama list`.
 - [ ] Step 3: Render check with the Jinja script from the StorageBaby skill reference (in Docker).
 - [ ] Step 4: Commit.
 

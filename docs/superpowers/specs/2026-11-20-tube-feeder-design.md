@@ -119,7 +119,7 @@ API:
 - GitHub Actions: on push to `main` build and push `ghcr.io/janlucaklees/jellyfin-tube-feeder`
   (`latest` + sha); weekly scheduled rebuild so yt-dlp stays current; unit tests gate the push.
 - `deploy/storagebaby/`: pod with `tubefeeder-app` and `tubefeeder-ollama`;
-  bind `/pool/shared/media/Music/YouTube` → `/music` rw, group `media`, `owner: 0`;
+  bind `/pool/shared/media/Music/Children` → `/music` rw, group `media`, `owner: 0`;
   `ollama` volume (pool) for models; app pulls the model through Ollama's API on start if
   missing; `AutoUpdate=registry` on both; `backup: none` (songs live in the media tree; no
   app data). Files created world-readable so Jellyfin (reads via other bits) sees them.
@@ -129,7 +129,7 @@ API:
 
 - Rebuilt in place in this repo; published as GitHub `janlucaklees/jellyfin-tube-feeder` (public).
 - Playlist links: only the linked video is taken (`--no-playlist`).
-- `Music/YouTube` does not exist on StorageBaby yet; no unmarked files to adopt.
+- `Music/Children` (JLK's choice) exists and is empty; the app owns it via `owner: 0`, Jellyfin reads it through the tree's other-read bits.
 - Benchmark cases: the 8 videos evaluated during design, with their expected artist/title.
 
 ## Left to the builder
