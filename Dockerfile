@@ -9,6 +9,8 @@ COPY ui ui
 RUN bun run build:ui
 
 FROM base AS runtime
+# Links the ghcr.io package to its repository, so it inherits the repo's public visibility.
+LABEL org.opencontainers.image.source=https://github.com/janlucaklees/jellyfin-tube-feeder
 ARG DEBIAN_FRONTEND=noninteractive
 # ffmpeg converts audio and writes tags; curl fetches yt-dlp and serves the health check.
 RUN apt-get update && \
