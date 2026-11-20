@@ -1,0 +1,30 @@
+[Unit]
+Description=Tube Feeder
+After=tubefeeder-ollama.service
+Wants=tubefeeder-ollama.service
+
+[Container]
+{# Floating tag: CI rebuilds weekly so yt-dlp stays current, and there is no data
+   migration to pin against -- the state is the MP3 tags. #}
+Image=ghcr.io/janlucaklees/jellyfin-tube-feeder:latest
+ContainerName=tubefeeder-app
+Pod=tubefeeder.pod
+AutoUpdate=registry
+Environment=TZ={{ tz }}
+Environment=LIBRARY_DIR=/music
+Environment=OLLAMA_URL=http://127.0.0.1:11434
+Environment=MODEL={{ service.config.model }}
+Environment=PORT={{ container_port }}
+{% for name, b in binds.items() %}
+Volume={{ b.host }}:{{ b.container }}:{{ b.mode | default('ro') }}
+{% endfor %}
+HealthCmd=curl -fs http://127.0.0.1:{{ container_port }}/health
+HealthStartPeriod=30s
+HealthOnFailure=kill
+
+[Service]
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

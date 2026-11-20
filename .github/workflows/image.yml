@@ -1,0 +1,49 @@
+name: image
+
+# Builds the app image, runs the unit tests inside it, and publishes it to ghcr.io.
+# Weekly as well, so the yt-dlp baked into the image keeps up with YouTube; StorageBaby
+# picks a new `latest` up through Podman's auto-update.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runtime
+          load: true
+          tags: ${{ env.IMAGE }}:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Unit tests
+        run: docker run --rm ${{ env.IMAGE }}:ci bun test server
+
+      - name: Publish
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker tag ${{ env.IMAGE }}:ci ${{ env.IMAGE }}:latest
+          docker tag ${{ env.IMAGE }}:ci ${{ env.IMAGE }}:${{ github.sha }}
+          docker push ${{ env.IMAGE }}:latest
+          docker push ${{ env.IMAGE }}:${{ github.sha }}

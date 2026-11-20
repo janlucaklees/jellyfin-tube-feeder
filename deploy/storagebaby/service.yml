@@ -1,0 +1,28 @@
+# Tube Feeder: paste YouTube links, get AI-tagged MP3s in the Jellyfin music tree.
+# Lives in its own repository; StorageBaby holds only a pointer to this folder.
+name: tubefeeder
+domain: tubefeeder
+container_port: 3000
+volumes:
+  # Ollama's models (gemma4:e2b is ~7 GB). No `owner`: the ollama image runs as
+  # container root, which is the service user.
+  ollama: { class: pool }
+binds:
+  # The only part of the media tree the app may write to. `owner: 0` hands it to the
+  # service user (container root); the app runs as root inside. Jellyfin reads the
+  # whole media tree through its other-read bits, and the app's files (umask 022) have
+  # them. Group `media` for anything on the host that reaches the library that way.
+  music:
+    {
+      host: /pool/shared/media/Music/Children,
+      container: /music,
+      mode: rw,
+      group: media,
+      owner: 0
+    }
+config:
+  model: gemma4:e2b
+secrets: []
+# The songs live in the media tree, the app keeps no data of its own (state is the
+# MP3 tags), and the models re-download on demand.
+backup: none
