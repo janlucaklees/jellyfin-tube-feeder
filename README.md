@@ -1,6 +1,6 @@
 # jellyfin-tube-feeder
 
-Paste YouTube links into a web page; get properly tagged MP3s in the Jellyfin music
+Paste a YouTube link into a web page (it starts by itself); get properly tagged MP3s in the Jellyfin music
 library. A local AI model (Ollama) works out artist, title, album and year from the video
 info, the thumbnail cropped square becomes the cover. Every song stays editable from the
 same page: change a tag and the file is retagged and moved to match.
@@ -14,11 +14,13 @@ server/
   main.ts       wires everything, starts the server, makes Ollama pull the model
   web.ts        JSON API, server-sent events, the built UI
   pipeline.ts   one job at a time: fetch info → AI tags → download → write MP3 → place
-  youtube.ts    yt-dlp: links in pasted text, video info, audio + thumbnail
+  links.ts      which YouTube videos a pasted text names (shared with the page)
+  youtube.ts    yt-dlp: video info, audio + thumbnail
   tagger.ts     Ollama prompt + the code-side rules that keep junk out of the tags
   mp3.ts        ffmpeg/ffprobe: write and read tags, cover, the app's own TXXX fields
   library.ts    Artist/Album/Artist - Title.mp3, safe names, moves, pruning
   songs.ts      in-memory index of the library, built by scanning it at start
+  jellyfin.ts   reports changed songs to Jellyfin
 ui/             SolidJS 2 page
 bench/          model benchmark on real videos
 deploy/storagebaby/   the StorageBaby service contract
@@ -73,6 +75,13 @@ wrong. `gemma4:e2b` (default): 8/8, about 4 s per song on a laptop CPU.
 | `OLLAMA_URL` | `http://127.0.0.1:11434` | |
 | `MODEL` | `gemma4:e2b` | any Ollama model with structured output |
 | `PORT` | `3000` | |
+| `JELLYFIN_URL` | — | e.g. `https://jellyfin.home.klees.io` |
+| `JELLYFIN_API_KEY` | — | without it, Jellyfin is not told about changes |
+| `JELLYFIN_LIBRARY_PATH` | — | the library folder as Jellyfin sees it, e.g. `/media/Music/Children` |
+
+With the three Jellyfin settings, every new, edited or deleted song is reported to
+Jellyfin (`POST /Library/Media/Updated`), so it shows up within seconds. Jellyfin's own
+folder watcher skips a library folder that was empty when Jellyfin started.
 
 ## Deployment
 

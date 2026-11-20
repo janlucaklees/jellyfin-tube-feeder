@@ -7,7 +7,11 @@ What runs: one pod, `tubefeeder`, at `tubefeeder.<host domain>` (home network on
 | `tubefeeder-app` | `ghcr.io/janlucaklees/jellyfin-tube-feeder:latest` | 3000 — the pod's `container_port` |
 | `tubefeeder-ollama` | `docker.io/ollama/ollama:0.40.13` | 127.0.0.1:11434, pod-internal |
 
-- **Secrets:** none. The image is public.
+- **Secrets:** `jellyfin_api_key` — a Jellyfin API key (Dashboard → API Keys). The app
+  reports every new, edited or deleted song to `https://jellyfin.<host domain>` as a path
+  under `config.jellyfin_library_path`, so Jellyfin shows it within seconds. Jellyfin's own
+  folder watcher skips a library folder that was empty when Jellyfin started, which is how
+  the first songs went unseen. The image is public.
 - **Volumes:** `ollama` (pool) — downloaded models. On first start the app asks Ollama
   to pull `service.config.model` (`gemma4:e2b`, ~7 GB); songs added before that finishes
   are written with fallback tags flagged for checking.

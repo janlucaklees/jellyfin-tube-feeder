@@ -15,6 +15,10 @@ Environment=LIBRARY_DIR=/music
 Environment=OLLAMA_URL=http://127.0.0.1:11434
 Environment=MODEL={{ service.config.model }}
 Environment=PORT={{ container_port }}
+{# Through Traefik: the pod's host-gateway drop-in maps every route of this host. #}
+Environment=JELLYFIN_URL=https://jellyfin.{{ domain }}
+Environment=JELLYFIN_LIBRARY_PATH={{ service.config.jellyfin_library_path }}
+Secret=jellyfin_api_key,type=env,target=JELLYFIN_API_KEY
 {% for name, b in binds.items() %}
 Volume={{ b.host }}:{{ b.container }}:{{ b.mode | default('ro') }}
 {% endfor %}

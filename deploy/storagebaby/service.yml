@@ -22,7 +22,11 @@ binds:
     }
 config:
   model: gemma4:e2b
-secrets: []
+  # The music folder as Jellyfin sees it (its bind is /pool/shared/media -> /media); the
+  # app reports every changed song there so Jellyfin picks it up within seconds.
+  jellyfin_library_path: /media/Music/Children
+# A Jellyfin API key (Dashboard -> API Keys), only used to report changed songs.
+secrets: [jellyfin_api_key]
 # The songs live in the media tree, the app keeps no data of its own (state is the
 # MP3 tags), and the models re-download on demand.
 backup: none

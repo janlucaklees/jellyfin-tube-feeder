@@ -1,6 +1,7 @@
 /** Wires the modules together and starts the server. */
 import { join } from "node:path";
 import { config } from "./config";
+import { createJellyfin } from "./jellyfin";
 import { place } from "./library";
 import { writeMp3 } from "./mp3";
 import { createPipeline } from "./pipeline";
@@ -14,6 +15,15 @@ const ask = askOllama(config.ollamaUrl, config.model);
 const songs = createSongIndex(config.libraryDir);
 await songs.load();
 console.log(`Library ${config.libraryDir}: ${songs.list().length} songs`);
+
+const jellyfin = createJellyfin({
+  url: config.jellyfinUrl,
+  apiKey: config.jellyfinApiKey,
+  libraryDir: config.libraryDir,
+  libraryPath: config.jellyfinLibraryPath,
+});
+songs.on((changes) => void jellyfin.report(changes));
+console.log(config.jellyfinApiKey ? `Reporting changes to Jellyfin at ${config.jellyfinUrl}` : "No JELLYFIN_API_KEY: not reporting changes to Jellyfin");
 
 const pipeline = createPipeline({
   libraryDir: config.libraryDir,

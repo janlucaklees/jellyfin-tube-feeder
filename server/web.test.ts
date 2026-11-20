@@ -95,6 +95,26 @@ test("an edit of an unknown song is a 404", async () => {
   expect((await call("PUT", "/api/songs/zzzzzzzzzzz", { artist: "a", title: "b", album: "c" })).status).toBe(404);
 });
 
+test("every change reports which files appeared and disappeared", async () => {
+  const seen: unknown[] = [];
+  songs.on((changes) => seen.push(changes));
+  const before = songs.get("aaaaaaaaaaa")!.file;
+
+  await call("PUT", "/api/songs/aaaaaaaaaaa", { artist: "Ida im Liederkasten", title: "Hallo du!", album: "Hallo du!" });
+  const after = songs.get("aaaaaaaaaaa")!.file;
+  await call("PUT", "/api/songs/aaaaaaaaaaa", { artist: "Ida im Liederkasten", title: "Hallo du!", album: "Hallo du!", year: 2024 });
+  await call("DELETE", "/api/songs/aaaaaaaaaaa");
+
+  expect(seen).toEqual([
+    [
+      { file: before, type: "Deleted" },
+      { file: after, type: "Created" },
+    ],
+    [{ file: after, type: "Modified" }],
+    [{ file: after, type: "Deleted" }],
+  ]);
+});
+
 test("delete removes the file and the song", async () => {
   const file = songs.get("bbbbbbbbbbb")!.file;
   expect((await call("DELETE", "/api/songs/bbbbbbbbbbb")).status).toBe(204);

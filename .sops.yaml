@@ -1,0 +1,6 @@
+creation_rules:
+  - path_regex: deploy/storagebaby/secrets\.sops\.yaml$
+    key_groups:
+      - age:
+          - age16eygwufge3085w0xqqw2pmj0w7h93465s6u0e3sg7ueaxlpxhcnqyfmgd5 # jlk, operator
+          - age142s7lfpzjdddrrxkee8gr057u9hqkanu220n4f6hvzmr9n66x4rs9w3zvs # storagebaby, host
