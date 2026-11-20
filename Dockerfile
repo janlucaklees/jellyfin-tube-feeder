@@ -6,6 +6,8 @@ COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 COPY vite.config.ts ./
 COPY ui ui
+# The page shares the server's link parser, so the page knows what the server accepts.
+COPY server/links.ts server/links.ts
 RUN bun run build:ui
 
 FROM base AS runtime
