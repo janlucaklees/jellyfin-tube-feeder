@@ -2,25 +2,32 @@
 HOST_UID = "{{ exec(command='id -u') }}"
 HOST_GID = "{{ exec(command='id -g') }}"
 
+# Docker would create a missing ./music as root, which the app (running as you) cannot write.
+[tasks.music-dir]
+hide = true
+run = "mkdir -p music"
+
 [tasks.build]
 description = "Builds the images (also updates yt-dlp to the latest release)"
 run = "docker compose --profile dev build --pull"
 
 [tasks.deps]
 description = "Installs the JS dependencies into ./node_modules (inside the container)"
+depends = ["music-dir"]
 run = "docker compose run -q --rm --no-deps app bun install"
 
 [tasks.up]
 description = "Builds the UI, then starts the app on http://localhost:3000 with Ollama (songs land in ./music)"
+depends = ["music-dir"]
 run = [
-  "mkdir -p music",
   "docker compose run -q --rm --no-deps app bun run build:ui",
   "docker compose up -d app",
 ]
 
 [tasks.dev]
 description = "Like `up`, plus the UI dev server with hot reload on http://localhost:5173"
-run = ["mkdir -p music", "docker compose --profile dev up -d"]
+depends = ["music-dir"]
+run = "docker compose --profile dev up -d"
 
 [tasks.down]
 description = "Stops everything"
@@ -32,10 +39,12 @@ run = "docker compose logs -f app"
 
 [tasks.test]
 description = "Runs the unit tests (no network)"
+depends = ["music-dir"]
 run = "docker compose run -q --rm --no-deps app bun test server"
 
 [tasks.check]
 description = "Type-checks server and UI, then runs the unit tests"
+depends = ["music-dir"]
 run = [
   "docker compose run -q --rm --no-deps app bun run check",
   "mise run test",
@@ -43,4 +52,5 @@ run = [
 
 [tasks.bench]
 description = "Benchmarks AI tagging on real videos (usage: mise run bench [model] [--download])"
+depends = ["music-dir"]
 run = "docker compose run -q --rm app bun bench/run.ts"

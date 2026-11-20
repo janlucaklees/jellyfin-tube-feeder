@@ -1,3 +1,5 @@
 import { render } from "@solidjs/web";
+import { App } from "./App";
+import "./style.css";
 
-render(() => <p>Tube Feeder</p>, document.getElementById("app")!);
+render(() => <App />, document.getElementById("app")!);
