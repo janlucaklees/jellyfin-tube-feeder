@@ -19,27 +19,6 @@ export interface VideoInfo {
   upload_date?: string;
 }
 
-export interface VideoLink {
-  videoId: string;
-  url: string;
-}
-
-const LINK =
-  /(?:https?:\/\/)?(?:www\.|m\.|music\.)?(?:youtube\.com\/(?:watch\?(?:[^\s]*?&)?v=|shorts\/|live\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/g;
-
-/** Every distinct video linked in `text`, in order, as canonical watch links. */
-export function parseLinks(text: string): VideoLink[] {
-  const seen = new Set<string>();
-  const links: VideoLink[] = [];
-  for (const match of text.matchAll(LINK)) {
-    const videoId = match[1]!;
-    if (seen.has(videoId)) continue;
-    seen.add(videoId);
-    links.push({ videoId, url: `https://www.youtube.com/watch?v=${videoId}` });
-  }
-  return links;
-}
-
 // yt-dlp needs a JS runtime for YouTube; bun is what the image has.
 const YT_DLP = ["yt-dlp", "--js-runtimes", "bun", "--no-playlist", "--no-progress"];
 

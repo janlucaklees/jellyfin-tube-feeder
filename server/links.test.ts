@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { parseLinks } from "./youtube";
+import { parseLinks } from "./links";
 
 const watch = (id: string) => `https://www.youtube.com/watch?v=${id}`;
 

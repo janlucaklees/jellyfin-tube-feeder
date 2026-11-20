@@ -69,7 +69,9 @@ button.quiet { background: transparent; color: var(--muted); border: 1px solid v
 button.danger:not(:disabled):hover { color: var(--error); border-color: var(--error); }
 
 .row { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
-.paste .row { justify-content: flex-end; }
+.paste .row { flex-wrap: nowrap; margin-top: 0; }
+.paste input { flex: 1; min-width: 0; }
+.paste .error { margin: 6px 0 0; }
 .error { color: var(--error); }
 pre.error { white-space: pre-wrap; font-size: 0.85rem; margin: 8px 0 0; max-height: 8em; overflow: auto; }
 .empty { color: var(--muted); }

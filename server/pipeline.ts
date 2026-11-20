@@ -9,7 +9,8 @@ import { join } from "node:path";
 import type { PathTags } from "./library";
 import type { SongRecord } from "./mp3";
 import type { Resolved } from "./tagger";
-import { parseLinks, type VideoInfo } from "./youtube";
+import { parseLinks } from "./links";
+import type { VideoInfo } from "./youtube";
 
 export type JobState = "queued" | "fetching" | "tagging" | "downloading" | "writing" | "done" | "duplicate" | "failed";
 

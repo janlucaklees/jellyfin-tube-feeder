@@ -1,4 +1,5 @@
 import { createSignal, createStore, For, onSettled, reconcile, Show } from "solid-js";
+import { parseLinks } from "../server/links";
 import { api, type Job, type ServerEvent, type Song } from "./api";
 import { JobCard } from "./JobCard";
 import { SongCard } from "./SongCard";
@@ -40,38 +41,66 @@ export function App() {
   // Finished jobs show up as songs; the job card only stays while there is something to see.
   const visibleJobs = () => jobs.list.filter((j) => j.state !== "done");
 
-  const submit = async (e: SubmitEvent) => {
-    e.preventDefault();
+  // Typing pauses this long before a complete-looking link is sent; a paste goes at once.
+  const TYPING_PAUSE_MS = 600;
+  let pending: ReturnType<typeof setTimeout> | undefined;
+  let sending = false;
+
+  const add = async (text: string, auto: boolean) => {
+    clearTimeout(pending);
+    if (sending) return;
+    if (parseLinks(text).length === 0) {
+      if (!auto) setError("Das ist kein YouTube-Link.");
+      return;
+    }
+    sending = true;
     setError("");
     try {
-      const queued = await api.addLinks(links());
-      if (queued.length === 0) setError("Keine neuen YouTube-Links gefunden.");
-      else setLinks("");
+      const queued = await api.addLinks(text);
+      setLinks("");
+      if (queued.length === 0) setError("Schon in der Bibliothek oder in Arbeit.");
     } catch (err) {
       setError((err as Error).message);
+    } finally {
+      sending = false;
     }
+  };
+
+  const onInput = (e: InputEvent & { currentTarget: HTMLInputElement }) => {
+    const text = e.currentTarget.value;
+    setLinks(text);
+    clearTimeout(pending);
+    if (parseLinks(text).length === 0) return;
+    const delay = e.inputType === "insertFromPaste" || e.inputType === "insertFromDrop" ? 0 : TYPING_PAUSE_MS;
+    pending = setTimeout(() => void add(links(), true), delay);
+  };
+
+  const submit = (e: SubmitEvent) => {
+    e.preventDefault();
+    void add(links(), false);
   };
 
   return (
     <main>
       <header>
         <h1>Tube Feeder</h1>
-        <p>YouTube-Links einfügen, fertig getaggte Lieder landen in Jellyfin.</p>
+        <p>YouTube-Link einfügen, das fertig getaggte Lied landet in Jellyfin.</p>
       </header>
 
       <form class="paste" onSubmit={submit}>
-        <textarea
-          placeholder="https://www.youtube.com/watch?v=…&#10;Ein Link pro Zeile, oder einfach alles hineinkopieren."
-          value={links()}
-          onInput={(e) => setLinks(e.currentTarget.value)}
-          rows={4}
-        />
         <div class="row">
-          <Show when={error()}>{(message) => <span class="error">{message()}</span>}</Show>
+          <input
+            type="text"
+            inputmode="url"
+            placeholder="YouTube-Link einfügen – startet von selbst"
+            value={links()}
+            onInput={onInput}
+          />
           <button type="submit" disabled={!links().trim()}>
             Hinzufügen
           </button>
         </div>
+        <Show when={error()}>{(message) => <p class="error">{message()}</p>}</Show>
       </form>
 
       <Show when={visibleJobs().length > 0}>
