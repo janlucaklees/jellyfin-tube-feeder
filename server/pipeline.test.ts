@@ -147,3 +147,44 @@ test("pasting a failed video again retries it instead of adding a second card", 
   expect(pipeline.jobs()).toHaveLength(1);
   expect(pipeline.jobs()[0]?.state).toBe("done");
 });
+
+test("a listener that throws does not stall the queue", async () => {
+  const pipeline = createPipeline(deps());
+  pipeline.on(() => {
+    throw new Error("closed stream");
+  });
+  pipeline.enqueue(link("aaaaaaaaaaa"));
+  await pipeline.idle();
+  pipeline.enqueue(link("bbbbbbbbbbb"));
+  await pipeline.idle();
+  expect(pipeline.jobs().map((j) => j.state)).toEqual(["done", "done"]);
+});
+
+test("an error outside a job's own steps does not stall the queue", async () => {
+  let explode = true;
+  const pipeline = createPipeline(
+    deps({
+      hasVideo: () => {
+        if (explode) throw new Error("index broken");
+        return false;
+      },
+    }),
+  );
+  pipeline.enqueue(link("aaaaaaaaaaa"));
+  await pipeline.idle();
+  expect(pipeline.jobs()[0]?.state).toBe("failed");
+  explode = false;
+  pipeline.enqueue(link("bbbbbbbbbbb"));
+  await pipeline.idle();
+  expect(pipeline.jobs()[1]?.state).toBe("done");
+});
+
+test("a song deleted from the library can be added again", async () => {
+  const pipeline = createPipeline(deps());
+  pipeline.enqueue(link("aaaaaaaaaaa"));
+  await pipeline.idle();
+  expect(pipeline.enqueue(link("aaaaaaaaaaa"))).toHaveLength(1);
+  await pipeline.idle();
+  expect(pipeline.jobs()).toHaveLength(1);
+  expect(written).toHaveLength(2);
+});

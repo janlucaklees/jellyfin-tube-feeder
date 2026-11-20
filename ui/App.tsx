@@ -1,18 +1,29 @@
-import { createSignal, createStore, For, onSettled, Show } from "solid-js";
+import { createSignal, createStore, For, onSettled, reconcile, Show } from "solid-js";
 import { api, type Job, type ServerEvent, type Song } from "./api";
 import { JobCard } from "./JobCard";
 import { SongCard } from "./SongCard";
 
 export function App() {
-  const [songs, setSongs] = createSignal<Song[]>([]);
+  // A store reconciled by video id: a song whose fields did not change keeps its
+  // identity, so its card (and any unsaved typing in it) survives other songs changing.
+  const [songs, setSongs] = createStore<{ list: Song[] }>({ list: [] });
   const [jobs, setJobs] = createStore<{ list: Job[] }>({ list: [] });
   const [links, setLinks] = createSignal("");
   const [error, setError] = createSignal("");
 
-  const loadSongs = () => api.songs().then(setSongs, (e: Error) => setError(e.message));
+  const loadSongs = () =>
+    api.songs().then(
+      (list) =>
+        setSongs((s) => {
+          reconcile(list, "videoId")(s.list);
+        }),
+      (e: Error) => setError(e.message),
+    );
 
   const onEvent = (event: ServerEvent) => {
-    if (event.type === "songs") return void loadSongs();
+    // "jobs" is the first message of every (re)connect: songs may have changed meanwhile.
+    if (event.type === "songs" || event.type === "jobs") void loadSongs();
+    if (event.type === "songs") return;
     setJobs((s) => {
       if (event.type === "jobs") s.list = event.jobs;
       else if (event.type === "job-removed") return { list: s.list.filter((j) => j.id !== event.id) };
@@ -24,10 +35,7 @@ export function App() {
     });
   };
 
-  onSettled(() => {
-    void loadSongs();
-    return api.events(onEvent);
-  });
+  onSettled(() => api.events(onEvent));
 
   // Finished jobs show up as songs; the job card only stays while there is something to see.
   const visibleJobs = () => jobs.list.filter((j) => j.state !== "done");
@@ -75,8 +83,8 @@ export function App() {
       </Show>
 
       <section class="songs">
-        <h2>Lieder ({songs().length})</h2>
-        <For each={songs()} keyed={(s) => s.videoId} fallback={<p class="empty">Noch keine Lieder.</p>}>
+        <h2>Lieder ({songs.list.length})</h2>
+        <For each={songs.list} keyed={(s) => s.videoId} fallback={<p class="empty">Noch keine Lieder.</p>}>
           {(song) => <SongCard song={song()} />}
         </For>
       </section>

@@ -19,10 +19,11 @@ export function segment(value: string): string {
   const safe = value
     .replace(/[\/\\:*?"<>|\x00-\x1f]/g, "_")
     .replace(/\s+/g, " ")
-    .trim()
-    .replace(/[. ]+$/, "")
+    // Leading dots would hide the folder (from this app's scan and from Jellyfin),
+    // trailing ones break on Windows shares.
+    .replace(/^[. ]+|[. ]+$/g, "")
     .slice(0, MAX_SEGMENT)
-    .trim();
+    .replace(/[. ]+$/, "");
   return safe === "" ? "_" : safe;
 }
 
@@ -32,11 +33,15 @@ export function songPath(tags: PathTags): string {
   return join(artist, segment(tags.album), `${segment(`${tags.artist} - ${tags.title}`)}.mp3`);
 }
 
-/** `file`, or `file (2)`, `file (3)`… whichever does not exist yet. */
-export function uniquePath(file: string): string {
+/**
+ * `file`, or `file (2)`, `file (3)`… whichever does not exist yet. `own` is the file
+ * being moved: its current name counts as free, so it keeps its number.
+ */
+export function uniquePath(file: string, own?: string): string {
   const base = file.replace(/\.mp3$/, "");
+  const taken = (path: string) => existsSync(path) && (!own || resolve(path) !== resolve(own));
   let candidate = file;
-  for (let n = 2; existsSync(candidate); n++) candidate = `${base} (${n}).mp3`;
+  for (let n = 2; taken(candidate); n++) candidate = `${base} (${n}).mp3`;
   return candidate;
 }
 
@@ -64,9 +69,8 @@ async function prune(libraryDir: string, dir: string): Promise<void> {
 
 /** Moves `file` to where `tags` say it belongs and returns its new path. */
 export async function place(libraryDir: string, file: string, tags: PathTags): Promise<string> {
-  const wanted = join(libraryDir, songPath(tags));
-  if (resolve(file) === resolve(wanted)) return file;
-  const target = uniquePath(wanted);
+  const target = uniquePath(join(libraryDir, songPath(tags)), file);
+  if (resolve(file) === resolve(target)) return file;
   await mkdir(dirname(target), { recursive: true });
   await move(file, target);
   if (!relative(libraryDir, file).startsWith("..")) await prune(libraryDir, dirname(file));

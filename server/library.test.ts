@@ -20,6 +20,11 @@ describe("segment", () => {
     expect(segment("")).toBe("_");
   });
 
+  test("strips leading dots so no folder becomes hidden", () => {
+    expect(segment(".38 Special")).toBe("38 Special");
+    expect(segment("...Baby One More Time")).toBe("Baby One More Time");
+  });
+
   test("caps the length", () => {
     expect(segment("a".repeat(300)).length).toBe(120);
   });
@@ -88,6 +93,15 @@ describe("on disk", () => {
     await writeFile(file, "x");
 
     expect(await place(dir, file, { artist: "A", title: "S", album: "S" })).toBe(file);
+  });
+
+  test("place keeps a numbered song's own name when nothing about its place changes", async () => {
+    await mkdir(join(dir, "A", "T"), { recursive: true });
+    await writeFile(join(dir, "A", "T", "A - T.mp3"), "other song");
+    const own = join(dir, "A", "T", "A - T (2).mp3");
+    await writeFile(own, "this song");
+
+    expect(await place(dir, own, { artist: "A", title: "T", album: "T" })).toBe(own);
   });
 
   test("remove deletes the file and prunes empty folders", async () => {

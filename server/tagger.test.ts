@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { resolveTags } from "./tagger";
+import { askOllama, resolveTags } from "./tagger";
 import type { VideoInfo } from "./youtube";
 
 const messy: VideoInfo = {
@@ -94,4 +94,16 @@ describe("resolveTags", () => {
     });
     expect(seen).toBe("Artist is Sing mit mir");
   });
+});
+
+test("a hung Ollama times out into fallbacks instead of blocking", async () => {
+  const server = Bun.serve({ port: 0, fetch: () => new Promise<Response>(() => {}) });
+  try {
+    const started = performance.now();
+    const result = await resolveTags(musicUpload, { ask: askOllama(`http://127.0.0.1:${server.port}`, "m", 200) });
+    expect(performance.now() - started).toBeLessThan(2000);
+    expect(result.fallbacks).toContain("artist");
+  } finally {
+    server.stop(true);
+  }
 });

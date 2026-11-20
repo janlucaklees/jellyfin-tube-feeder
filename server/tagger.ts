@@ -32,8 +32,12 @@ const SCHEMA = {
   required: ["artist", "title", "album", "year"],
 };
 
-/** The default `Ask`: one schema-constrained call to an Ollama model. */
-export function askOllama(ollamaUrl: string, model: string): Ask {
+/**
+ * The default `Ask`: one schema-constrained call to an Ollama model. Jobs run one at a
+ * time, so a hung call must time out rather than block the queue; the default leaves room
+ * for a cold model load on a slow CPU.
+ */
+export function askOllama(ollamaUrl: string, model: string, timeoutMs = 180_000): Ask {
   return async (info, hint) => {
     const video = {
       title: info.title,
@@ -53,6 +57,7 @@ export function askOllama(ollamaUrl: string, model: string): Ask {
     const response = await fetch(`${ollamaUrl}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal: AbortSignal.timeout(timeoutMs),
       body: JSON.stringify({
         model,
         stream: false,
