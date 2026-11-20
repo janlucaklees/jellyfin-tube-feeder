@@ -1,0 +1,14 @@
+services:
+  natatube:
+    build: .
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    # Host Ollama listens on loopback only, so share the host's network.
+    network_mode: host
+    environment:
+      OLLAMA_URL: "${OLLAMA_URL:-http://127.0.0.1:11434}"
+      NATATUBE_MODEL: "${NATATUBE_MODEL:-gemma4:e2b}"
+    volumes:
+      - ./:/app
+      - "${OUT_DIR:-./}:/out"
+    working_dir: /out
+    entrypoint: ["bun", "run", "/app/src/main.ts"]

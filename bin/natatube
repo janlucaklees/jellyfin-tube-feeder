@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+# Runs natatube in Docker and writes the MP3 into the directory you call it from.
+# Put this on your PATH, e.g. ln -s "$PWD/bin/natatube" ~/.local/bin/natatube
+set -eu
+root=$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)
+HOST_UID=$(id -u) HOST_GID=$(id -g) OUT_DIR="$PWD" \
+  exec docker compose -f "$root/compose.yml" --project-directory "$root" run -q --rm natatube "$@"

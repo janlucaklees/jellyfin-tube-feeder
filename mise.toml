@@ -1,0 +1,19 @@
+[env]
+HOST_UID = "{{ exec(command='id -u') }}"
+HOST_GID = "{{ exec(command='id -g') }}"
+
+[tasks.build]
+description = "Builds the Docker image (also updates yt-dlp to the latest release)"
+run = "docker compose build --pull"
+
+[tasks.deps]
+description = "Installs the TypeScript dev dependencies inside the container"
+run = "docker compose run -q --rm --entrypoint bun natatube install --cwd /app"
+
+[tasks.get]
+description = "Downloads a YouTube link as a tagged MP3 into ./ (usage: mise run get <link> [--hint \"...\"])"
+run = "docker compose run -q --rm natatube"
+
+[tasks.check]
+description = "Type-checks the source"
+run = "docker compose run -q --rm --entrypoint bun -w /app natatube x tsc --noEmit"
