@@ -1,0 +1,10 @@
+[
+  { "url": "https://www.youtube.com/watch?v=F98x5f0ITKg", "artist": "Ida im Liederkasten", "title": "Hallo du!", "note": "auto-generated music upload" },
+  { "url": "https://www.youtube.com/watch?v=Km3BzXz-GhI", "artist": "Ida im Liederkasten", "title": "Im Advent", "note": "auto-generated music upload" },
+  { "url": "https://www.youtube.com/watch?v=NTNLniTF-J0", "artist": "Ida im Liederkasten", "title": "Blättertanz", "note": "artist and suffix in title" },
+  { "url": "https://www.youtube.com/watch?v=YJHTZbIdOFs", "artist": "Hurra Kinderlieder", "title": ["Da da da, dei dei dei - Das Windelpupser Lied", "Das Windelpupser Lied"], "note": "emoji, category prefix, channel suffix" },
+  { "url": "https://www.youtube.com/watch?v=rJWZhitXWzI", "artist": ["Sing mit mir", "Sing mit mir - Kinderlieder"], "title": "Das ist gerade, das ist schief", "note": "generic suffixes" },
+  { "url": "https://www.youtube.com/watch?v=8OBqE-UugaY", "artist": "Rolf Zuckowski", "title": ["Einmal leben (Version 2015)", "Einmal leben"], "note": "artist | title, version info" },
+  { "url": "https://www.youtube.com/watch?v=Fb2UcPEpzWQ", "artist": "Mark Forster", "title": "Ein Lied", "note": "Official Video suffix" },
+  { "url": "https://www.youtube.com/watch?v=cRPPBWTvQCk", "artist": "Kindermusikwelt", "title": "Die Baustelle", "note": "long pipe-separated title" }
+]
