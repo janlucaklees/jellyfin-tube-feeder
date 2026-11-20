@@ -1,14 +1,33 @@
+# Local development. Production runs from deploy/storagebaby/ instead.
+name: tube-feeder
 services:
-  natatube:
-    build: .
+  app:
+    build: { context: ., target: runtime }
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
-    # Host Ollama listens on loopback only, so share the host's network.
-    network_mode: host
     environment:
-      OLLAMA_URL: "${OLLAMA_URL:-http://127.0.0.1:11434}"
-      NATATUBE_MODEL: "${NATATUBE_MODEL:-gemma4:e2b}"
+      HOME: /tmp
+      LIBRARY_DIR: /music
+      OLLAMA_URL: http://ollama:11434
+      MODEL: "${MODEL:-gemma4:e2b}"
     volumes:
       - ./:/app
-      - "${OUT_DIR:-./}:/out"
-    working_dir: /out
-    entrypoint: ["bun", "run", "/app/src/main.ts"]
+      - ./music:/music
+    ports: ["3000:3000"]
+    depends_on: [ollama]
+
+  ui:
+    profiles: [dev]
+    build: { context: ., target: base }
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    environment: { HOME: /tmp }
+    volumes: ["./:/app"]
+    command: ["bun", "run", "dev:ui"]
+    ports: ["5173:5173"]
+    depends_on: [app]
+
+  ollama:
+    image: ollama/ollama:0.40.13
+    volumes: ["ollama:/root/.ollama"]
+
+volumes:
+  ollama:

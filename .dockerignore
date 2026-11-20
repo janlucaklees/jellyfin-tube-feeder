@@ -1,2 +1,6 @@
 node_modules
-*.mp3
+dist
+music
+.git
+.superpowers
+docs

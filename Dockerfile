@@ -1,18 +1,27 @@
-FROM oven/bun:1.3-debian
+FROM oven/bun:1.3-debian AS base
+WORKDIR /app
 
+FROM base AS ui
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
+COPY vite.config.ts ./
+COPY ui ui
+RUN bun run build:ui
+
+FROM base AS runtime
 ARG DEBIAN_FRONTEND=noninteractive
-
-# ffmpeg converts audio and embeds the cover; curl fetches yt-dlp.
+# ffmpeg converts audio and writes tags; curl fetches yt-dlp and serves the health check.
 RUN apt-get update && \
     apt-get -y install --no-install-recommends ffmpeg curl ca-certificates && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# yt-dlp is deliberately the latest standalone release: YouTube changes often and
-# old yt-dlp versions stop working. Rebuild the image (`mise run build`) to update.
+# Deliberately the latest yt-dlp: YouTube breaks old versions. CI rebuilds the image weekly.
 RUN curl -fsSL -o /usr/local/bin/yt-dlp https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux && \
     chmod +x /usr/local/bin/yt-dlp
-
-# The container runs as the host user, who has no home inside the image.
-ENV HOME=/tmp
-
-WORKDIR /app
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile --production
+COPY server server
+COPY --from=ui /app/dist/ui dist/ui
+ENV LIBRARY_DIR=/music PORT=3000
+EXPOSE 3000
+HEALTHCHECK CMD curl -fs http://127.0.0.1:3000/health || exit 1
+CMD ["bun", "server/main.ts"]

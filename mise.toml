@@ -3,17 +3,44 @@ HOST_UID = "{{ exec(command='id -u') }}"
 HOST_GID = "{{ exec(command='id -g') }}"
 
 [tasks.build]
-description = "Builds the Docker image (also updates yt-dlp to the latest release)"
-run = "docker compose build --pull"
+description = "Builds the images (also updates yt-dlp to the latest release)"
+run = "docker compose --profile dev build --pull"
 
 [tasks.deps]
-description = "Installs the TypeScript dev dependencies inside the container"
-run = "docker compose run -q --rm --entrypoint bun natatube install --cwd /app"
+description = "Installs the JS dependencies into ./node_modules (inside the container)"
+run = "docker compose run -q --rm --no-deps app bun install"
 
-[tasks.get]
-description = "Downloads a YouTube link as a tagged MP3 into ./ (usage: mise run get <link> [--hint \"...\"])"
-run = "docker compose run -q --rm natatube"
+[tasks.up]
+description = "Builds the UI, then starts the app on http://localhost:3000 with Ollama (songs land in ./music)"
+run = [
+  "mkdir -p music",
+  "docker compose run -q --rm --no-deps app bun run build:ui",
+  "docker compose up -d app",
+]
+
+[tasks.dev]
+description = "Like `up`, plus the UI dev server with hot reload on http://localhost:5173"
+run = ["mkdir -p music", "docker compose --profile dev up -d"]
+
+[tasks.down]
+description = "Stops everything"
+run = "docker compose --profile dev down"
+
+[tasks.logs]
+description = "Follows the app's log"
+run = "docker compose logs -f app"
+
+[tasks.test]
+description = "Runs the unit tests (no network)"
+run = "docker compose run -q --rm --no-deps app bun test server"
 
 [tasks.check]
-description = "Type-checks the source"
-run = "docker compose run -q --rm --entrypoint bun -w /app natatube x tsc --noEmit"
+description = "Type-checks server and UI, then runs the unit tests"
+run = [
+  "docker compose run -q --rm --no-deps app bun run check",
+  "mise run test",
+]
+
+[tasks.bench]
+description = "Benchmarks AI tagging on real videos (usage: mise run bench [model] [--download])"
+run = "docker compose run -q --rm app bun bench/run.ts"
