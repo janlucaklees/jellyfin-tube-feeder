@@ -1,11 +1,20 @@
 # jellyfin-tube-feeder
 
-Paste a YouTube link into a web page (it starts by itself); get properly tagged MP3s in the Jellyfin music
-library. A local AI model (Ollama) works out artist, title, album and year from the video
+Paste a YouTube or Spotify song link into a web page (it starts by itself); get properly tagged MP3s in
+the Jellyfin music library. A local AI model (Ollama) works out artist, title, album and year from the video
 info, the thumbnail cropped square becomes the cover. Every song stays editable from the
 same page: change a tag and the file is retagged and moved to match.
 
 Made for one-off uploads (kids' songs, small artists) that no music database knows.
+
+**Spotify songs** are tagged from Spotify (artist, title, Spotify's album, year, cover), no AI.
+The audio never comes from Spotify (its streams are DRM-protected): the app searches YouTube
+Music's songs, then SoundCloud, and takes only an exact match: same title (case, punctuation
+and "feat." parts ignored), Spotify's first artist, length within 3 s. No exact match, the job
+fails and lists what it found, so a YouTube link can be pasted by hand. The details come from
+the public song page's link-preview tags (Open Graph, `music:*`), no Spotify account or API key;
+if Spotify drops one of them, the page's text goes to the AI instead. Single songs only, no
+albums or playlists.
 
 ## How it works
 
@@ -13,10 +22,14 @@ Made for one-off uploads (kids' songs, small artists) that no music database kno
 server/
   main.ts       wires everything, starts the server, makes Ollama pull the model
   web.ts        JSON API, server-sent events, the built UI
-  pipeline.ts   one job at a time: fetch info → AI tags → download → write MP3 → place
-  links.ts      which YouTube videos a pasted text names (shared with the page)
+  pipeline.ts   one job at a time: fetch info → AI tags (or Spotify's) → download → write MP3 → place
+  links.ts      which YouTube videos and Spotify songs a pasted text names (shared with the page)
   youtube.ts    yt-dlp: video info, audio + thumbnail
+  spotify.ts    a Spotify song's details from its public page, the AI as fallback
+  search.ts     yt-dlp: YouTube Music / SoundCloud search for a Spotify song's audio
+  match.ts      when a found recording is exactly the Spotify song
   tagger.ts     Ollama prompt + the code-side rules that keep junk out of the tags
+  ollama.ts     one schema-constrained Ollama call
   mp3.ts        ffmpeg/ffprobe: write and read tags, cover, the app's own TXXX fields
   library.ts    Artist/Album/Artist - Title.mp3, safe names, moves, pruning
   songs.ts      in-memory index of the library, built by scanning it at start
@@ -27,10 +40,11 @@ deploy/storagebaby/   the StorageBaby service contract
 ```
 
 **There is no database.** Each MP3 is its own record: besides the usual tags it carries
-`TUBEFEEDER_VIDEO_ID`, `TUBEFEEDER_SOURCE_URL`, `TUBEFEEDER_ADDED` and
+`TUBEFEEDER_VIDEO_ID` (for a Spotify song: its track id), `TUBEFEEDER_SOURCE_URL`, `TUBEFEEDER_ADDED` and
 `TUBEFEEDER_FALLBACKS` as ID3 TXXX frames. The song list is a scan of the library folder,
 so copying the folder restores everything. Jobs in progress live in memory and are gone
-after a restart. Only MP3s carrying `TUBEFEEDER_VIDEO_ID` are listed or touched.
+after a restart. Only MP3s carrying `TUBEFEEDER_VIDEO_ID` are listed or touched. A pasted
+song already in the library (same video or Spotify track) is not downloaded again.
 
 **Tag rules** (`server/tagger.ts`): the AI proposes; empty or placeholder answers
 ("Unknown", "N/A") fall back to YouTube's own music fields, then the channel name and raw

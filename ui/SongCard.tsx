@@ -1,4 +1,5 @@
 import { createSignal, Show } from "solid-js";
+import { isSpotify } from "../server/links";
 import { api, type Song, type TagName } from "./api";
 
 export function SongCard(props: { song: Song }) {
@@ -25,6 +26,8 @@ export function SongCard(props: { song: Song }) {
   };
 
   const check = (tag: TagName) => props.song.fallbacks.includes(tag);
+  // Spotify's tags are the record's; the AI has nothing to add to them.
+  const fromSpotify = () => isSpotify(props.song.sourceUrl);
 
   async function run(label: string, work: () => Promise<unknown>) {
     setBusy(label);
@@ -86,15 +89,17 @@ export function SongCard(props: { song: Song }) {
           <button type="submit" disabled={!dirty() || !!busy()}>
             Speichern
           </button>
-          <input
-            class="ask"
-            placeholder="Hinweis für die KI, z. B. „Interpret ist …“"
-            value={hint()}
-            onInput={(e) => setHint(e.currentTarget.value)}
-          />
-          <button type="button" disabled={!hint().trim() || !!busy()} onClick={ask}>
-            KI nochmal fragen
-          </button>
+          <Show when={!fromSpotify()}>
+            <input
+              class="ask"
+              placeholder="Hinweis für die KI, z. B. „Interpret ist …“"
+              value={hint()}
+              onInput={(e) => setHint(e.currentTarget.value)}
+            />
+            <button type="button" disabled={!hint().trim() || !!busy()} onClick={ask}>
+              KI nochmal fragen
+            </button>
+          </Show>
           <button type="button" class="quiet danger" disabled={!!busy()} onClick={remove}>
             Löschen
           </button>
@@ -103,7 +108,7 @@ export function SongCard(props: { song: Song }) {
           <Show when={busy()}>{(label) => <span>{label()}</span>}</Show>
           <Show when={error()}>{(message) => <span class="error">{message()}</span>}</Show>
           <a href={props.song.sourceUrl} target="_blank" rel="noreferrer">
-            Video
+            {fromSpotify() ? "Spotify" : "Video"}
           </a>
           <span title={props.song.file}>{props.song.file.replace(/^.*?\/(?=[^/]+\/[^/]+\/[^/]+$)/, "")}</span>
         </div>

@@ -4,13 +4,17 @@ import { config } from "./config";
 import { createJellyfin } from "./jellyfin";
 import { place } from "./library";
 import { writeMp3 } from "./mp3";
+import { ollamaChat } from "./ollama";
 import { createPipeline } from "./pipeline";
+import { findAudio } from "./search";
 import { createSongIndex } from "./songs";
+import { downloadCover, fetchTrack } from "./spotify";
 import { askOllama, resolveTags } from "./tagger";
 import { createApp } from "./web";
 import { download, fetchInfo } from "./youtube";
 
 const ask = askOllama(config.ollamaUrl, config.model);
+const chat = ollamaChat(config.ollamaUrl, config.model);
 
 const songs = createSongIndex(config.libraryDir);
 await songs.load();
@@ -30,6 +34,9 @@ const pipeline = createPipeline({
   fetchInfo,
   resolveTags: (info) => resolveTags(info, { ask }),
   download,
+  fetchTrack: (id) => fetchTrack(id, chat),
+  findAudio: (wanted) => findAudio(wanted),
+  downloadCover,
   writeMp3,
   place,
   hasVideo: songs.has,

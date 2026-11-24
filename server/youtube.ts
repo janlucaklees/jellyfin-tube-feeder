@@ -27,9 +27,13 @@ export async function fetchInfo(url: string): Promise<VideoInfo> {
   return JSON.parse(json) as VideoInfo;
 }
 
-/** Downloads best audio as MP3 and the thumbnail as JPEG into `dir`. */
-export async function download(url: string, dir: string): Promise<{ audio: string; cover: string | null }> {
-  await $`${YT_DLP} -x --audio-format mp3 --audio-quality 0 --write-thumbnail --convert-thumbnails jpg -o ${join(dir, "media.%(ext)s")} -- ${url}`.quiet();
+/**
+ * Downloads best audio as MP3 and, unless told not to, the thumbnail as JPEG into `dir`.
+ * Works for any site yt-dlp knows (SoundCloud too), not only YouTube.
+ */
+export async function download(url: string, dir: string, opts: { thumbnail?: boolean } = {}): Promise<{ audio: string; cover: string | null }> {
+  const thumbnail = opts.thumbnail === false ? [] : ["--write-thumbnail", "--convert-thumbnails", "jpg"];
+  await $`${YT_DLP} -x --audio-format mp3 --audio-quality 0 ${thumbnail} -o ${join(dir, "media.%(ext)s")} -- ${url}`.quiet();
   const cover = join(dir, "media.jpg");
   return { audio: join(dir, "media.mp3"), cover: (await Bun.file(cover).exists()) ? cover : null };
 }

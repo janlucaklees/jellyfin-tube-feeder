@@ -1,7 +1,8 @@
 /**
- * The orchestrator: turns pasted links into jobs and runs them one at a time
- * through youtube → tagger → mp3 → library. Jobs live in memory only; a
- * restart forgets them, the finished songs are on disk.
+ * The orchestrator: turns pasted links into jobs and runs them one at a time,
+ * a YouTube link through youtube → tagger → mp3 → library, a Spotify link through
+ * spotify → search → mp3 → library. Jobs live in memory only; a restart forgets
+ * them, the finished songs are on disk.
  */
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -9,15 +10,19 @@ import { join } from "node:path";
 import type { PathTags } from "./library";
 import type { SongRecord } from "./mp3";
 import type { Resolved } from "./tagger";
-import { parseLinks } from "./links";
+import { parseLinks, type Source } from "./links";
+import type { Wanted } from "./match";
+import type { SpotifyTrack } from "./spotify";
 import type { VideoInfo } from "./youtube";
 
-export type JobState = "queued" | "fetching" | "tagging" | "downloading" | "writing" | "done" | "duplicate" | "failed";
+export type JobState = "queued" | "fetching" | "tagging" | "matching" | "downloading" | "writing" | "done" | "duplicate" | "failed";
 
 export interface Job {
   id: string;
   url: string;
+  /** The YouTube video id or Spotify track id. */
   videoId: string;
+  source: Source;
   state: JobState;
   /** The video's title, once known. */
   title?: string;
@@ -32,7 +37,11 @@ export interface PipelineDeps {
   libraryDir: string;
   fetchInfo(url: string): Promise<VideoInfo>;
   resolveTags(info: VideoInfo): Promise<Resolved>;
-  download(url: string, dir: string): Promise<{ audio: string; cover: string | null }>;
+  download(url: string, dir: string, opts?: { thumbnail?: boolean }): Promise<{ audio: string; cover: string | null }>;
+  fetchTrack(id: string): Promise<SpotifyTrack>;
+  /** The URL of a recording that exactly matches the Spotify song; throws when there is none. */
+  findAudio(wanted: Wanted): Promise<string>;
+  downloadCover(url: string | undefined, dir: string): Promise<string | null>;
   writeMp3(audio: string, cover: string | null, record: SongRecord, target: string): Promise<void>;
   place(libraryDir: string, file: string, tags: PathTags): Promise<string>;
   /** Whether the library already holds this video. */
@@ -40,7 +49,7 @@ export interface PipelineDeps {
   now?(): string;
 }
 
-const ACTIVE: JobState[] = ["queued", "fetching", "tagging", "downloading", "writing"];
+const ACTIVE: JobState[] = ["queued", "fetching", "tagging", "matching", "downloading", "writing"];
 const FINISHED: JobState[] = ["done", "duplicate"];
 
 export function createPipeline(deps: PipelineDeps) {
@@ -68,11 +77,7 @@ export function createPipeline(deps: PipelineDeps) {
       if (deps.hasVideo(job.videoId)) return update(job, { state: "duplicate" });
       work = await mkdtemp(join(tmpdir(), "tubefeeder-"));
       update(job, { state: "fetching", error: undefined });
-      const info = await deps.fetchInfo(job.url);
-      update(job, { state: "tagging", title: info.title });
-      const { tags, fallbacks } = await deps.resolveTags(info);
-      update(job, { state: "downloading" });
-      const media = await deps.download(job.url, work);
+      const { tags, fallbacks, media } = job.source === "spotify" ? await fromSpotify(job, work) : await fromYoutube(job, work);
       update(job, { state: "writing" });
       const record: SongRecord = {
         ...tags,
@@ -94,6 +99,28 @@ export function createPipeline(deps: PipelineDeps) {
     }
   }
 
+  type Prepared = Resolved & { media: { audio: string; cover: string | null } };
+
+  async function fromYoutube(job: Job, work: string): Promise<Prepared> {
+    const info = await deps.fetchInfo(job.url);
+    update(job, { state: "tagging", title: info.title });
+    const resolved = await deps.resolveTags(info);
+    update(job, { state: "downloading" });
+    return { ...resolved, media: await deps.download(job.url, work) };
+  }
+
+  // Spotify knows the tags; only the audio has to come from somewhere else.
+  async function fromSpotify(job: Job, work: string): Promise<Prepared> {
+    const track = await deps.fetchTrack(job.videoId);
+    update(job, { state: "matching", title: `${track.artist} – ${track.title}` });
+    const audioUrl = await deps.findAudio(track);
+    update(job, { state: "downloading" });
+    const { audio } = await deps.download(audioUrl, work, { thumbnail: false });
+    const cover = await deps.downloadCover(track.coverUrl, work);
+    const { artist, title, album, year } = track;
+    return { tags: { artist, title, album, ...(year ? { year } : {}) }, fallbacks: [], media: { audio, cover } };
+  }
+
   function kick(): void {
     if (running) return;
     running = (async () => {
@@ -111,12 +138,12 @@ export function createPipeline(deps: PipelineDeps) {
     /** Queues every new video linked in `text` and returns the jobs it created or re-queued. */
     enqueue(text: string): Job[] {
       const queued: Job[] = [];
-      for (const { videoId, url } of parseLinks(text)) {
+      for (const { videoId, url, source } of parseLinks(text)) {
         const existing = jobs.find((job) => job.videoId === videoId);
         // A finished job is run again only once its song has left the library (deleted).
         const rerun = existing && (existing.state === "failed" || (FINISHED.includes(existing.state) && !deps.hasVideo(videoId)));
         if (existing && !rerun) continue;
-        const job = existing ?? { id: crypto.randomUUID(), url, videoId, state: "queued" as JobState };
+        const job = existing ?? { id: crypto.randomUUID(), url, videoId, source, state: "queued" as JobState };
         if (!existing) jobs.push(job);
         update(job, { state: "queued", error: undefined });
         queued.push(job);

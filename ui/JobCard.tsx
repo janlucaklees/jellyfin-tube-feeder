@@ -3,8 +3,9 @@ import { api, type Job, type JobState } from "./api";
 
 const LABEL: Record<JobState, string> = {
   queued: "Wartet",
-  fetching: "Lese Videoinfos",
+  fetching: "Lese Infos",
   tagging: "KI ermittelt Tags",
+  matching: "Suche exakt passende Aufnahme",
   downloading: "Lade herunter",
   writing: "Schreibe MP3",
   done: "Fertig",
@@ -12,10 +13,17 @@ const LABEL: Record<JobState, string> = {
   failed: "Fehlgeschlagen",
 };
 
-const STEPS: JobState[] = ["queued", "fetching", "tagging", "downloading", "writing", "done"];
+// A Spotify song is tagged from Spotify, then searched for; a YouTube video is tagged by the AI.
+const STEPS: Record<Job["source"], JobState[]> = {
+  youtube: ["queued", "fetching", "tagging", "downloading", "writing", "done"],
+  spotify: ["queued", "fetching", "matching", "downloading", "writing", "done"],
+};
 
 export function JobCard(props: { job: Job }) {
-  const progress = () => Math.max(0, STEPS.indexOf(props.job.state)) / (STEPS.length - 1);
+  const progress = () => {
+    const steps = STEPS[props.job.source];
+    return Math.max(0, steps.indexOf(props.job.state)) / (steps.length - 1);
+  };
   const finished = () => props.job.state === "failed" || props.job.state === "duplicate";
 
   return (

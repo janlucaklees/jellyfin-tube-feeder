@@ -14,13 +14,13 @@ let songs: SongIndex;
 let app: ReturnType<typeof createApp>;
 let asked: { videoId: string; hint: string }[];
 
-async function addSong(videoId: string, artist: string, title: string, added: string) {
+async function addSong(videoId: string, artist: string, title: string, added: string, sourceUrl = `https://youtu.be/${videoId}`) {
   const dir = join(libraryDir, artist, title);
   await mkdir(dir, { recursive: true });
   const raw = join(libraryDir, `${videoId}.raw.mp3`);
   await $`ffmpeg -loglevel error -f lavfi -i anullsrc=r=44100:cl=mono -t 1 -q:a 9 ${raw}`.quiet();
   const file = join(dir, `${artist} - ${title}.mp3`);
-  await writeMp3(raw, null, { artist, title, album: title, videoId, sourceUrl: `https://youtu.be/${videoId}`, added, fallbacks: ["artist"] }, file);
+  await writeMp3(raw, null, { artist, title, album: title, videoId, sourceUrl, added, fallbacks: ["artist"] }, file);
   await rm(raw);
   return file;
 }
@@ -43,6 +43,13 @@ beforeEach(async () => {
     download: async () => {
       throw new Error("unused");
     },
+    fetchTrack: async () => {
+      throw new Error("offline");
+    },
+    findAudio: async () => {
+      throw new Error("unused");
+    },
+    downloadCover: async () => null,
     writeMp3: async () => {},
     place: async () => "",
     hasVideo: songs.has,
@@ -135,4 +142,17 @@ test("posting links queues jobs", async () => {
 
 test("health answers ok", async () => {
   expect((await call("GET", "/health")).status).toBe(200);
+});
+
+test("a Spotify song is reached by its track id and is not handed to the AI", async () => {
+  const id = "0kosUz0jePvjiz4ctmR6wL";
+  await addSong(id, "Shakira", "Dai Dai", "2026-11-24T10:00:00.000Z", `https://open.spotify.com/track/${id}`);
+  await songs.load();
+
+  const saved = await call("PUT", `/api/songs/${id}`, { artist: "Shakira", title: "Dai Dai", album: "Las Mujeres", year: 2026 });
+  expect(saved.status).toBe(200);
+  expect((await saved.json()).album).toBe("Las Mujeres");
+
+  expect((await call("POST", `/api/songs/${id}/ask`, { hint: "anything" })).status).toBe(400);
+  expect(asked).toEqual([]);
 });

@@ -3,6 +3,7 @@
  * built UI. Holds no logic of its own beyond validating input.
  */
 import { join, normalize } from "node:path";
+import { isSpotify } from "./links";
 import { readCover } from "./mp3";
 import type { Pipeline, PipelineEvent } from "./pipeline";
 import type { Song, Tags } from "./song";
@@ -71,7 +72,7 @@ export function createApp(deps: AppDeps) {
   async function fetch(request: Request): Promise<Response> {
     const { pathname } = new URL(request.url);
     const method = request.method;
-    const songMatch = pathname.match(/^\/api\/songs\/([A-Za-z0-9_-]{11})(\/cover|\/ask)?$/);
+    const songMatch = pathname.match(/^\/api\/songs\/([A-Za-z0-9_-]{11}|[A-Za-z0-9]{22})(\/cover|\/ask)?$/);
     const jobMatch = pathname.match(/^\/api\/jobs\/([0-9a-f-]+)(\/retry)?$/);
 
     try {
@@ -104,6 +105,7 @@ export function createApp(deps: AppDeps) {
           const body = (await request.json().catch(() => ({}))) as { hint?: unknown };
           const hint = typeof body.hint === "string" ? body.hint.trim() : "";
           if (!hint) return bad("hint must not be empty");
+          if (isSpotify(songs.get(videoId!)!.sourceUrl)) return bad("Spotify songs are tagged from Spotify, not by the AI");
           return json(await deps.askAgain(videoId!, hint));
         }
         if (!sub && method === "PUT") {

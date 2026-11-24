@@ -2,6 +2,7 @@
  * Turns video info into song tags: the AI proposes, code-side rules make sure
  * nothing empty or placeholder-like ever reaches the library.
  */
+import { ollamaChat } from "./ollama";
 import type { TagName, Tags } from "./song";
 import type { VideoInfo } from "./youtube";
 
@@ -32,12 +33,9 @@ const SCHEMA = {
   required: ["artist", "title", "album", "year"],
 };
 
-/**
- * The default `Ask`: one schema-constrained call to an Ollama model. Jobs run one at a
- * time, so a hung call must time out rather than block the queue; the default leaves room
- * for a cold model load on a slow CPU.
- */
-export function askOllama(ollamaUrl: string, model: string, timeoutMs = 180_000): Ask {
+/** The default `Ask`: one schema-constrained call to an Ollama model. */
+export function askOllama(ollamaUrl: string, model: string, timeoutMs?: number): Ask {
+  const chat = ollamaChat(ollamaUrl, model, timeoutMs);
   return async (info, hint) => {
     const video = {
       title: info.title,
@@ -53,26 +51,7 @@ export function askOllama(ollamaUrl: string, model: string, timeoutMs = 180_000)
     };
     let content = `Video information:\n${JSON.stringify(video)}`;
     if (hint) content += `\n\nHints from the user:\n${hint}`;
-
-    const response = await fetch(`${ollamaUrl}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      signal: AbortSignal.timeout(timeoutMs),
-      body: JSON.stringify({
-        model,
-        stream: false,
-        think: false,
-        format: SCHEMA,
-        options: { temperature: 0 },
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content },
-        ],
-      }),
-    });
-    if (!response.ok) throw new Error(`Ollama (${model}) answered ${response.status}: ${await response.text()}`);
-    const body = (await response.json()) as { message: { content: string } };
-    return JSON.parse(body.message.content) as Partial<Tags>;
+    return (await chat(SYSTEM_PROMPT, content, SCHEMA)) as Partial<Tags>;
   };
 }
 

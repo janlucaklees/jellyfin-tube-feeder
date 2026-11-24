@@ -13,12 +13,13 @@ export interface Song {
   fallbacks: TagName[];
 }
 
-export type JobState = "queued" | "fetching" | "tagging" | "downloading" | "writing" | "done" | "duplicate" | "failed";
+export type JobState = "queued" | "fetching" | "tagging" | "matching" | "downloading" | "writing" | "done" | "duplicate" | "failed";
 
 export interface Job {
   id: string;
   url: string;
   videoId: string;
+  source: "youtube" | "spotify";
   state: JobState;
   title?: string;
   error?: string;

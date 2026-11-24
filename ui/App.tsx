@@ -50,7 +50,7 @@ export function App() {
     clearTimeout(pending);
     if (sending) return;
     if (parseLinks(text).length === 0) {
-      if (!auto) setError("Das ist kein YouTube-Link.");
+      if (!auto) setError("Das ist kein YouTube- oder Spotify-Link.");
       return;
     }
     sending = true;
@@ -84,7 +84,7 @@ export function App() {
     <main>
       <header>
         <h1>Tube Feeder</h1>
-        <p>YouTube-Link einfügen, das fertig getaggte Lied landet in Jellyfin.</p>
+        <p>YouTube- oder Spotify-Link einfügen, das fertig getaggte Lied landet in Jellyfin.</p>
       </header>
 
       <form class="paste" onSubmit={submit}>
@@ -92,7 +92,7 @@ export function App() {
           <input
             type="text"
             inputmode="url"
-            placeholder="YouTube-Link einfügen – startet von selbst"
+            placeholder="YouTube- oder Spotify-Link einfügen – startet von selbst"
             value={links()}
             onInput={onInput}
           />

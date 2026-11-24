@@ -11,11 +11,15 @@ import type { VideoInfo } from "./youtube";
 let libraryDir: string;
 let written: SongRecord[];
 let known: Set<string>;
+let downloadedCovers: (string | undefined)[];
+let writtenCovers: (string | null)[];
 
 beforeEach(async () => {
   libraryDir = await mkdtemp(join(tmpdir(), "pipeline-test-"));
   written = [];
   known = new Set();
+  downloadedCovers = [];
+  writtenCovers = [];
 });
 afterEach(async () => {
   await rm(libraryDir, { recursive: true, force: true });
@@ -30,8 +34,16 @@ function deps(overrides: Partial<PipelineDeps> = {}): PipelineDeps {
       await writeFile(join(dir, "media.mp3"), "audio");
       return { audio: join(dir, "media.mp3"), cover: null };
     },
-    writeMp3: async (audio, _cover, record, target) => {
+    fetchTrack: async (id) => ({ id, title: "Dai Dai", artist: "Shakira, Burna Boy", album: "Las Mujeres", year: 2026, durationSec: 223, coverUrl: "https://i.scdn.co/c" }),
+    findAudio: async () => "https://music.youtube.com/watch?v=matchedaaaa",
+    downloadCover: async (url, dir) => {
+      downloadedCovers.push(url);
+      await writeFile(join(dir, "cover.jpg"), "jpg");
+      return join(dir, "cover.jpg");
+    },
+    writeMp3: async (audio, cover, record, target) => {
       written.push(record);
+      writtenCovers.push(cover);
       await writeFile(target, await Bun.file(audio).text());
     },
     place,
@@ -187,4 +199,61 @@ test("a song deleted from the library can be added again", async () => {
   await pipeline.idle();
   expect(pipeline.jobs()).toHaveLength(1);
   expect(written).toHaveLength(2);
+});
+
+const spotify = (id: string) => `https://open.spotify.com/track/${id}`;
+
+test("a Spotify song is tagged from Spotify, its exact match downloaded without thumbnail", async () => {
+  const events: PipelineEvent[] = [];
+  const downloads: { url: string; thumbnail?: boolean }[] = [];
+  const pipeline = createPipeline(
+    deps({
+      fetchInfo: async () => {
+        throw new Error("no YouTube info for a Spotify song");
+      },
+      resolveTags: async () => {
+        throw new Error("no AI tagging for a Spotify song");
+      },
+      download: async (url, dir, opts) => {
+        downloads.push({ url, thumbnail: opts?.thumbnail });
+        await writeFile(join(dir, "media.mp3"), "audio");
+        return { audio: join(dir, "media.mp3"), cover: null };
+      },
+    }),
+  );
+  pipeline.on((e) => events.push(structuredClone(e)));
+
+  pipeline.enqueue(spotify("0kosUz0jePvjiz4ctmR6wL"));
+  await pipeline.idle();
+
+  const states = events.filter((e) => e.type === "job").map((e) => (e as { job: Job }).job.state);
+  expect(states).toEqual(["queued", "fetching", "matching", "downloading", "writing", "done"]);
+  expect(pipeline.jobs()[0]).toMatchObject({ source: "spotify", title: "Shakira, Burna Boy – Dai Dai" });
+  expect(downloads).toEqual([{ url: "https://music.youtube.com/watch?v=matchedaaaa", thumbnail: false }]);
+  expect(downloadedCovers).toEqual(["https://i.scdn.co/c"]);
+  expect(writtenCovers[0]).toEndWith("cover.jpg");
+  expect(written[0]).toMatchObject({
+    artist: "Shakira, Burna Boy",
+    title: "Dai Dai",
+    album: "Las Mujeres",
+    year: 2026,
+    videoId: "0kosUz0jePvjiz4ctmR6wL",
+    sourceUrl: spotify("0kosUz0jePvjiz4ctmR6wL"),
+    fallbacks: [],
+  });
+  expect(existsSync(join(libraryDir, "Shakira, Burna Boy", "Las Mujeres", "Shakira, Burna Boy - Dai Dai.mp3"))).toBe(true);
+});
+
+test("a Spotify song without an exact match fails with what was found", async () => {
+  const pipeline = createPipeline(
+    deps({
+      findAudio: async () => {
+        throw new Error("Keine exakt passende Aufnahme auf YouTube Music oder SoundCloud gefunden.");
+      },
+    }),
+  );
+  pipeline.enqueue(spotify("0kosUz0jePvjiz4ctmR6wL"));
+  await pipeline.idle();
+  expect(pipeline.jobs()[0]).toMatchObject({ state: "failed", error: expect.stringContaining("Keine exakt passende") });
+  expect(written).toHaveLength(0);
 });
