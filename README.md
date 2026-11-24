@@ -14,7 +14,8 @@ and "feat." parts ignored), Spotify's first artist, length within 3 s. No exact 
 fails and lists what it found, so a YouTube link can be pasted by hand. The details come from
 the public song page's link-preview tags (Open Graph, `music:*`), no Spotify account or API key;
 if Spotify drops one of them, the page's text goes to the AI instead. Single songs only, no
-albums or playlists.
+albums or playlists. Several artists become one tag, joined with ", ". A Spotify song has no
+"ask the AI again" box: its tags are Spotify's, edited by hand.
 
 ## How it works
 

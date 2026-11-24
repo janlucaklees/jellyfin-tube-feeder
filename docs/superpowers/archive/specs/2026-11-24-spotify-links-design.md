@@ -1,3 +1,5 @@
+> Archived 2026-11-24: historical record of a decision, not current behaviour. Do not edit.
+
 # Spotify links — design (short)
 
 ## Intent
